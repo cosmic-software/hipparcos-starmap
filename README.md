@@ -7,6 +7,11 @@ engine, or a planetarium dome.
 
 **Author:** Ben Gavares (cosmic-software).
 
+## Ready-made map
+
+Don't want to run anything? Grab **[`starmap_hipparcos_8k.png`](starmap_hipparcos_8k.png)** --
+8192 x 4096, stars to magnitude 6.5 (~8,000 stars), generated with the defaults below.
+
 ## Use it
 
 Needs **Python 3.8+**, `numpy` and `pillow`:
