@@ -1,0 +1,7 @@
+# the catalogue and generated maps (download / regenerate; not in git)
+hip_main.dat
+hip_main.dat.gz
+*.png
+*.npy
+__pycache__/
+*.pyc
