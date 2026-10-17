@@ -38,7 +38,8 @@ python starmap_gen.py --catalog hip_main.dat --out sky.png --npy sky_hsv.npy
 | `--npy` | also write an HSV NumPy array (one entry per star pixel; **large**) | off |
 | `--width` / `--height` | image size (keep 2:1) | `8192 × 4096` |
 | `--mag` | faintest magnitude to include (6 ≈ naked-eye limit) | `6.0` |
-| `--blur` | Gaussian blur radius, px (0 = none) | `3.0` |
+| `--star-size` | star dot radius in px (same for every star) | `1.5` |
+| `--blur` | Gaussian blur radius, px (0 = crisp) | `0.0` |
 
 The PNG is mostly black with sparse stars, so it compresses small (a few MB even at high
 resolution). The optional `--npy` array is uncompressed and can be hundreds of MB to gigabytes at
@@ -48,7 +49,8 @@ large sizes — leave it off unless you need per-star HSV data.
 
 - RA → x (`x = ra / 360 × width`), Dec → y (`y = (90 − dec) / 180 × height`), so the image is the
   sky unwrapped: RA 0–360° left to right, Dec +90° (north) at the top to −90° (south) at the bottom.
-- Stars brighter than `--mag` are kept; brighter = larger dot.
+- Stars brighter than `--mag` are kept; **every star is the same size** (`--star-size`),
+  and **magnitude sets its brightness** (brighter = brighter dot, not bigger).
 - Colour comes from the spectral class: O/B blue, A white, F/G yellow-white to yellow, K orange,
   M red — the usual stellar colour sequence.
 

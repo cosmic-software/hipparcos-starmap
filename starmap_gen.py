@@ -36,6 +36,11 @@ SPECTRAL_RGB = {"O": (155, 176, 255), "B": (170, 191, 255), "A": (202, 215, 255)
                 "M": (255, 204, 111)}
 DEFAULT_RGB = (200, 200, 200)
 
+# every star is the same SIZE; magnitude sets its BRIGHTNESS (flux ~ 10^(-0.4 mag), normalised so a
+# star at MAG_FULL or brighter is full brightness, gamma-lifted, with a floor so the faintest are
+# still visible).
+MAG_FULL, MAG_GAMMA, MIN_BRIGHT = 1.5, 0.5, 0.1
+
 
 def _open(url):
     """Open the URL, falling back to an unverified TLS context when the machine has no CA bundle
@@ -95,30 +100,33 @@ def classify_color(sptype):
     return SPECTRAL_RGB.get(sptype[:1].upper(), DEFAULT_RGB) if sptype else DEFAULT_RGB
 
 
-def create_starmap(catalog, out_png, out_npy=None, width=8192, height=4096, mag_limit=6.0, blur=3.0):
+def create_starmap(catalog, out_png, out_npy=None, width=8192, height=4096, mag_limit=6.0,
+                   blur=0.0, star_size=1.5):
     """Write the equirectangular star map (and, when out_npy is given, an HSV NumPy array with one
-    entry per plotted star pixel: H, S, V in 0..255)."""
+    entry per plotted star pixel: H, S, V in 0..255). Every star is the same size; magnitude sets
+    its brightness."""
     ra, dec, mag, spt = read_catalog(catalog)
     keep = mag <= mag_limit
     ra, dec, mag, spt = ra[keep], dec[keep], mag[keep], spt[keep]
     print(f"{len(ra):,} stars brighter than magnitude {mag_limit:g}")
 
-    # brighter stars drawn larger (magnitude is inverted: smaller = brighter)
-    min_r, max_r = 1.0, 6.0
-    radii = np.clip(max_r - (mag / mag_limit) * (max_r - min_r), min_r, max_r)
+    # brightness from magnitude (same size for every star)
+    flux = 10.0 ** (-0.4 * (mag - MAG_FULL))
+    val = MIN_BRIGHT + (1.0 - MIN_BRIGHT) * np.clip(flux, 0.0, 1.0) ** MAG_GAMMA
     colors = [classify_color(s) for s in spt]
 
     img = Image.new("RGB", (width, height), "black")
     draw = ImageDraw.Draw(img)
     hsv = np.zeros((height, width, 3), dtype=np.uint8) if out_npy else None
+    r = max(star_size, 0.5)
     for i in range(len(ra)):
         x = int((ra[i] / 360.0) * width) % width
         y = int(((90.0 - dec[i]) / 180.0) * height)
         y = min(max(y, 0), height - 1)
-        r = radii[i]
-        draw.ellipse((x - r, y - r, x + r, y + r), fill=colors[i])
+        col = tuple(int(c * val[i]) for c in colors[i])
+        draw.ellipse((x - r, y - r, x + r, y + r), fill=col)
         if hsv is not None:
-            h, s, v = colorsys.rgb_to_hsv(*[c / 255.0 for c in colors[i]])
+            h, s, v = colorsys.rgb_to_hsv(*[c / 255.0 for c in col])
             hsv[y, x] = (int(h * 255), int(s * 255), int(v * 255))
 
     if blur > 0:
@@ -138,13 +146,14 @@ def main(argv=None):
     ap.add_argument("--width", type=int, default=8192)
     ap.add_argument("--height", type=int, default=4096)
     ap.add_argument("--mag", type=float, default=6.0, help="faintest magnitude to include")
-    ap.add_argument("--blur", type=float, default=3.0, help="Gaussian blur radius in pixels (0 = none)")
+    ap.add_argument("--star-size", type=float, default=1.5, help="star dot radius in pixels (same for every star)")
+    ap.add_argument("--blur", type=float, default=0.0, help="Gaussian blur radius in pixels (0 = crisp)")
     a = ap.parse_args(argv)
     if a.width != 2 * a.height:
         print("note: equirectangular maps are 2:1 (width = 2 x height); continuing anyway.", file=sys.stderr)
     if not os.path.exists(a.catalog):
         download_catalog(a.catalog)
-    create_starmap(a.catalog, a.out, a.npy, a.width, a.height, a.mag, a.blur)
+    create_starmap(a.catalog, a.out, a.npy, a.width, a.height, a.mag, a.blur, a.star_size)
 
 
 if __name__ == "__main__":
